@@ -45,6 +45,8 @@ def load_conll(f, features, n_features=(2 ** 16), split=False):
         Samples (feature vectors), as a single sparse matrix.
     y : np.ndarray, dtype np.string, shape n_samples
         Per-sample labels.
+    words : np.ndarray, dtype string, shape n_sequences
+        Words (in each line) read from input file
     lengths : np.ndarray, dtype np.int32, shape n_sequences
         Lengths of sequences within (X, y). The sum of these is equal to
         n_samples.
@@ -52,17 +54,17 @@ def load_conll(f, features, n_features=(2 ** 16), split=False):
     fh = FeatureHasher(n_features=n_features, input_type="string")
     labels = []
     lengths = []
-
+    words = []
     with _open(f) as f:
-        raw_X = _conll_sequences(f, features, labels, lengths, split)
+        raw_X = _conll_sequences(f, features, labels, lengths, words, split)
         X = fh.transform(raw_X)
 
-    return X, np.asarray(labels), np.asarray(lengths, dtype=np.int32)
+    return X, np.asarray(labels), np.asarray(words), np.asarray(lengths, dtype=np.int32)
 
 
-def _conll_sequences(f, features, labels, lengths, split):
+def _conll_sequences(f, features, labels, lengths, words, split):
     # Divide input into blocks of empty and non-empty lines.
-    lines = (str.strip(line) for line in  f)
+    lines = (str.strip(line) for line in f)
     groups = (grp for nonempty, grp in groupby(lines, bool) if nonempty)
 
     for group in groups:
@@ -74,6 +76,7 @@ def _conll_sequences(f, features, labels, lengths, split):
 
         labels.extend(lbl)
         lengths.append(len(lbl))
+        words.extend(obs[0] if split else obs)
         for i in six.moves.xrange(len(obs)):
             yield features(obs, i)
 
