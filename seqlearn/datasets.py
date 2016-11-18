@@ -5,10 +5,11 @@ from itertools import chain, groupby
 
 import numpy as np
 from sklearn.feature_extraction import FeatureHasher
+from sklearn.feature_extraction import DictVectorizer
 from sklearn.externals import six
 
 
-def load_conll(f, features, n_features=(2 ** 16), split=False):
+def load_conll(f, features, vectorizer="hash", n_features=(2 ** 16), split=False):
     """Load CoNLL file, extract features on the tokens and vectorize them.
 
     The ConLL file format is a line-oriented text format that describes
@@ -32,6 +33,8 @@ def load_conll(f, features, n_features=(2 ** 16), split=False):
         Feature extraction function. Must take a list of tokens l that
         represent a single sequence and an index i into this list, and must
         return an iterator over strings that represent the features of l[i].
+    vectorizer : string
+        Type of vectorizer to use. "dict" or "hash".
     n_features : integer, optional
         Number of columns in the output.
     split : boolean, default=False
@@ -51,13 +54,18 @@ def load_conll(f, features, n_features=(2 ** 16), split=False):
         Lengths of sequences within (X, y). The sum of these is equal to
         n_samples.
     """
-    fh = FeatureHasher(n_features=n_features, input_type="string")
     labels = []
     lengths = []
     words = []
     with _open(f) as f:
         raw_X = _conll_sequences(f, features, labels, lengths, words, split)
-        X = fh.transform(raw_X)
+        if vectorizer == "hash":
+            fh = FeatureHasher(n_features=n_features, input_type="string")
+            X = fh.transform(raw_X)
+        else:
+            dv = DictVectorizer()
+            raw_X = (item for it in raw_X for item in it)
+            X = dv.fit_transform(raw_X)
 
     return X, np.asarray(labels), np.asarray(words), np.asarray(lengths, dtype=np.int32)
 
